@@ -21,36 +21,43 @@
 
 ### 調整節目
 
-找到程式中的這一行
+在程式中修改這個參數
 ``` js
-const url = 'https://tixcraft.com/activity/game/25_wubaitp';
+/** 節目參數 */
+const gameId = '25_wubaitp';
 ```
-將 `25_wubaitp` 改成節目的參數
 
 ### 調整場次
 
-找到程式中的這一行
+在程式中修改這個參數
 ``` js
-await page.click('#gameList button');
+/** 尋找場次按鈕規則 */
+const gameLinkSelector = '#gameList tr:nth-child(1) button';
 ```
-根據自訂規則調整 selector
 > 預設是點選第一個按鈕
 
 ### 調整區域
 
-找到程式中的這一行
+在程式中修改這個參數
 ``` js
-await page.click('.area-list a');
+/** 尋找區域按鈕規則 */
+const areaLinkSelector = '.area-list a';
 ```
-根據自訂規則調整 selector
 > 預設是點選第一個有剩餘的區域
 
 ### 調整票種與票數
 
-找到程式中的這一行
+在程式中修改這 2 個參數
 ``` js
-await page.select('#TicketForm_ticketPrice_01', '1');
+/** 尋找票種下拉選單規則 */
+const ticketPriceSelector = '#ticketPriceList tr:nth-child(1) select';
+/** 票種購買數量 */
+const ticketCount = 1;
 ```
-- 第一個參數是對應第一個票種的下拉選單
-- 第二個參數是該票種的數量
+- 第 1 個參數是對應第一個票種的下拉選單
+- 第 2 個參數是該票種的數量
 > 預設是選擇第一個票種一張
+
+## 開發參考資源
+
+[Puppeteer](https://pptr.dev/)

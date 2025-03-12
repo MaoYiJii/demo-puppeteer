@@ -2,12 +2,6 @@ const puppeteer = require('puppeteer');
 const sharp = require('sharp');
 const Tesseract = require('tesseract.js');
 
-function delay(time) {
-  return new Promise(function(resolve) {
-    setTimeout(resolve, time);
-  });
-}
-
 function groupBy(array, keyExpression) {
   return array.reduce((group, item) => {
     const key = keyExpression(item);
@@ -17,31 +11,18 @@ function groupBy(array, keyExpression) {
   }, {});
 }
 
-function handleAlert(page, action, timeout = 1000) {
-  return Promise.race([
-    delay(timeout),
-    new Promise((resolve) => {
-      page.once('dialog', async (dialog) => {
-        await dialog.dismiss();
-        resolve(true);
-      });
-      action(page);
-    })
-  ]);
-}
-
-/** 辨識圖片 */
-async function recognizeCaptcha(page, selector) {
-  const captchaElement = await page.$(selector);
-  const captchaBuffer = await captchaElement.screenshot();
-  // 使用 Tesseract.js 辨識驗證碼
-  const { data: { text: text } } = await Tesseract.recognize(captchaBuffer, 'eng', {
-    // 設置參數讓辨識度提高
-  });
-  return text?.toLowerCase().trim() ?? '';
-}
-
 (async () => {
+  /** 節目參數 */
+  const gameId = '25_wubaitp';
+  /** 尋找場次按鈕規則 */
+  const gameLinkSelector = '#gameList tr:nth-child(1) button';
+  /** 尋找區域按鈕規則 */
+  const areaLinkSelector = '.area-list a';
+  /** 尋找票種下拉選單規則 */
+  const ticketPriceSelector = '#ticketPriceList tr:nth-child(1) select';
+  /** 票種購買數量 */
+  const ticketCount = 1;
+
   // 啟動 Puppeteer 並開啟瀏覽器
   //const browser = await puppeteer.launch({ headless: false }); // 設為 false 可看到瀏覽器操作
 
@@ -57,30 +38,65 @@ async function recognizeCaptcha(page, selector) {
   // 開啟新分頁
   const page = await browser.newPage();
   // 開啟 URL
-  const url = 'https://tixcraft.com/activity/game/25_wubaitp';
+  const url = `https://tixcraft.com/activity/game/${gameId}`;
   await page.goto(url, { waitUntil: 'networkidle2' });
 
   // 設定視窗大小
   await page.setViewport({ width: 1920, height: 919 });
 
-  // 選擇第一個演出時間
-  await page.click('#gameList button');
+  let alertHandler = null;
+  page.on('dialog', async (dialog) => {
+    await dialog.dismiss();
+    if (typeof alertHandler === 'function') {
+      alertHandler();
+      alertHandler = null;
+    }
+  });
 
-  // 選擇第一個區域
-  await page.click('.area-list a');
+  let hasArea = false;
+  while (!hasArea) {
+    // 選擇第一個場次
+    let gameLink = await page.$(gameLinkSelector).catch(reason => {});
+    while (!gameLink) {
+      // 重新整理直到有場次出現
+      await page.reload({ waitUntil: ["networkidle2"] });
+      gameLink = await page.$(gameLinkSelector).catch(reason => {});
+    }
+    await gameLink.click();
+    // 選擇第一個有剩餘的區域
+    let areaLink = await page.$(areaLinkSelector).catch(reason => {});
+    while (!areaLink) {
+      // 重新整理直到有剩餘出現
+      await page.reload({ waitUntil: ["networkidle2"] });
+      areaLink = await page.$(areaLinkSelector).catch(reason => {});
+    }
+    // 點擊區域
+    hasArea = await Promise.race([
+      new Promise(resolve => alertHandler = resolve),
+      (async () => {
+        await areaLink.click();
+        await page.waitForNavigation({ waitUntil: ["networkidle2"] });
+        return true;
+      })()
+    ]);
+    if (!hasArea) {
+      console.log('沒有座位，重新選擇場次');
+    }
+  }
 
   let submitSuccess = false;
   while (!submitSuccess) {
     // 選擇購買數量
-    await page.select('#TicketForm_ticketPrice_01', '1');
+    const ticketSelect = await page.waitForSelector(ticketPriceSelector);
+    await ticketSelect.select(String(ticketCount));
     // 找到驗證碼圖片的元素
-    const captchaElement = await page.$('TicketForm_verifyCode-image');
+    const captchaElement = await page.waitForSelector('#TicketForm_verifyCode-image');
     // 設定檢查驗證碼文字的規則
-    const captchaRegex = /^[a-z]{4}$/;
+    const captchaRegex = /[a-z]{4}/;
     let captchaText = '';
     while (!captchaText) {
       // 設定額外辨識多少張驗證碼的圖片
-      const captchaLength = 15;
+      const captchaLength = 10;
       // 在原本的驗證碼圖片後面加入額外辨識的元素
       await page.evaluate(len => {
         const el = document.getElementById('TicketForm_verifyCode-image');
@@ -141,18 +157,15 @@ async function recognizeCaptcha(page, selector) {
         const { data: { text: text } } = await Tesseract.recognize(captchaBuffer, 'eng', {
           // 設置參數讓辨識度提高
         });
-        recognizeArray.push(text?.toLowerCase().trim() ?? '');
+        const text2 = (text?.toLowerCase().trim() ?? '').match(captchaRegex)?.[0];
+        if (text2) {
+          recognizeArray.push(text2);
+        }
       });
       await Promise.all(recognizeTasks);
       console.log('recognizeArray', recognizeArray);
       // 根據相同文字的數量取得最多的一個文字
-      captchaText = Object.entries(
-        groupBy(
-          // 判斷識別的文字是否符合規則
-          recognizeArray.filter(x => captchaRegex.test(x)),
-          x => x
-        )
-      ).sort(([aKey, aValues], [bKey, bValues]) => bValues.length - aValues.length)[0][0] || '';
+      captchaText = Object.entries(groupBy(recognizeArray, x => x)).sort(([aKey, aValues], [bKey, bValues]) => bValues.length - aValues.length)[0][0] || '';
       // 判斷是否有成功辨識到文字
       if (!captchaText) {
         console.log(`辨識驗證碼 ${captchaText} 失敗，重新獲取`);
@@ -172,7 +185,15 @@ async function recognizeCaptcha(page, selector) {
     // 勾選同意會員服務條款
     await page.click('#TicketForm_agree');
     // 提交表單
-    submitSuccess = !(await handleAlert(page, p => p.click('[type="submit"]'), 10000));
+    submitSuccess = await Promise.race([
+      new Promise(resolve => alertHandler = resolve),
+      (async () => {
+        await page.click('[type="submit"]');
+        // 跳轉到 https://tixcraft.com/ticket/checkout 才算成功
+        await page.waitForRequest(request => request.url().includes('checkout'));
+        return true;
+      })()
+    ]);
     if (!submitSuccess) {
       console.log('驗證碼錯誤，重新提交');
     }
@@ -180,4 +201,5 @@ async function recognizeCaptcha(page, selector) {
   console.log('已完成');
   // 關閉瀏覽器
   //await browser.close();
+  process.exit(0);
 })();
