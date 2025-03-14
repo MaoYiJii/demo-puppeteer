@@ -8,10 +8,12 @@
 
 ## 運行
 
-1. 以 cmd 開啟 chrome
+1. 以 cmd 開啟 chrome  
+   *執行前先關閉 chrome 的所有視窗*
 ``` cmd
 "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --no-first-run --no-default-browser-check
 ```
+> 開啟後瀏覽 `http://localhost:9222/json/version` 檢查是否有成功串到偵錯的 port
 
 2. 在 chrome 登入 [tixcraft](https://tixcraft.com/) (讓瀏覽器有 Cookie)
 
@@ -21,7 +23,7 @@
 
 ### 調整節目
 
-在程式中修改這個參數
+開啟專案目錄下的 `nodejs\index.js`，修改這個參數
 ``` js
 /** 節目參數 */
 const gameId = '25_wubaitp';
@@ -29,7 +31,7 @@ const gameId = '25_wubaitp';
 
 ### 調整場次
 
-在程式中修改這個參數
+開啟專案目錄下的 `nodejs\index.js`，修改這個參數
 ``` js
 /** 尋找場次按鈕規則 */
 const gameLinkSelector = '#gameList tr:nth-child(1) button';
@@ -38,7 +40,7 @@ const gameLinkSelector = '#gameList tr:nth-child(1) button';
 
 ### 調整區域
 
-在程式中修改這個參數
+開啟專案目錄下的 `nodejs\index.js`，修改這個參數
 ``` js
 /** 尋找區域按鈕規則 */
 const areaLinkSelector = '.area-list a';
@@ -47,7 +49,7 @@ const areaLinkSelector = '.area-list a';
 
 ### 調整票種與票數
 
-在程式中修改這 2 個參數
+開啟專案目錄下的 `nodejs\index.js`，修改這 2 個參數
 ``` js
 /** 尋找票種下拉選單規則 */
 const ticketPriceSelector = '#ticketPriceList tr:nth-child(1) select';
