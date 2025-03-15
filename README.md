@@ -11,7 +11,7 @@
 1. 以 cmd 開啟 chrome  
    *執行前先關閉 chrome 的所有視窗*
 ``` cmd
-"C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --no-first-run --no-default-browser-check
+"C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --no-first-run --no-default-browser-check --app https://tixcraft.com/
 ```
 > 開啟後瀏覽 `http://localhost:9222/json/version` 檢查是否有成功串到偵錯的 port
 
@@ -43,9 +43,9 @@ const gameSeq = 1;
 開啟專案目錄下的 `nodejs\index.js`，修改這個參數
 ``` js
 /** 票價優先權 (通常是選座位區域) */
-const ticketPrices = [3800, 3200];
+const ticketPrices = [3800];
 ```
-> 預設是先選 3800 票價再選 3200 票價，都沒有才選其他票價
+> 預設是先選 3800 票價，沒有才選其他票價
 
 ### 調整票種與票數
 

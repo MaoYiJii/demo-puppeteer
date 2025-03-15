@@ -7,7 +7,7 @@ const gameId = '25_wubaitp';
 /** 第幾場 (通常是選擇日期) */
 const gameSeq = 1;
 /** 票價優先權 (通常是選座位區域) */
-const ticketPrices = [3800, 3200];
+const ticketPrices = [3800];
 /** 票種與數量 (總數不要大於 4) */
 const tickets = [
   {
@@ -42,7 +42,7 @@ function groupBy(array, keyExpression) {
   //const browser = await puppeteer.launch({ headless: false }); // 設為 false 可看到瀏覽器操作
 
   // 使用指令開啟 Chrome (開啟後先手動登入讓它有 cookie)
-  // "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --no-first-run --no-default-browser-check
+  // "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --no-first-run --no-default-browser-check --app https://tixcraft.com/
   const browser = await puppeteer.connect({
     browserURL: 'http://localhost:9222' // 連接本地的 Chrome 瀏覽器
   });
@@ -104,8 +104,13 @@ function groupBy(array, keyExpression) {
         console.error(ex);
         catchCount++;
         if (catchCount >= 3) {
-          // 錯誤 3 次重頭開始跑
-          await page.goto(`https://tixcraft.com/activity/game/${gameId}`, { waitUntil: 'networkidle0' });
+          try {
+            // 錯誤 3 次重頭開始跑
+            await page.goto(`https://tixcraft.com/activity/game/${gameId}`, { waitUntil: 'networkidle0' });
+          }
+          catch (ex) {
+            console.error('發生異常，已中止');
+          }
         }
       }
     }
@@ -115,7 +120,7 @@ function groupBy(array, keyExpression) {
    * /activity/detail/25_wubaitp */
   async function resolveDetail() {
     // 跳轉到選擇場次
-    await page.goto(`https://tixcraft.com/activity/game/${gameId}`, { waitUntil: 'networkidle0' });
+    await page.goto(`https://tixcraft.com/activity/game/${gameId}`, { waitUntil: 'load' });
   }
 
   /** 選擇場次
@@ -127,11 +132,11 @@ function groupBy(array, keyExpression) {
     while (!link) {
       // 重新整理直到有場次出現
       console.log('沒有可選擇場次，重新整理');
-      await page.reload({ timeout: 3000 });
+      await page.reload({ waitUntil: 'networkidle0', timeout: 5000 });
       link = await page.$(selector);
     }
     await link.click();
-    await page.waitForNavigation({ timeout: 3000 });
+    await page.waitForNavigation({ waitUntil: 'load', timeout: 5000 });
   }
 
   /** 選擇區域 (票價)
@@ -161,6 +166,8 @@ function groupBy(array, keyExpression) {
             // 無法獲取確切票價
             return 0;
           }
+          // 熱賣中 (還有足夠的空位)
+          return 100;
         }, link, ticketCount);
         if (price !== -1) {
           if (String(price) === String(ticketPrices[0])) {
@@ -173,20 +180,23 @@ function groupBy(array, keyExpression) {
           });
         }
       }
-      // 根據票價設定取得靠前的優先度
-      const pricesReverse = ticketPrices.reverse();
-      return alternatives.sort((a, b) => pricesReverse.indexOf(b.price) - pricesReverse.indexOf(a.price))[0].link;
+      // 如果設定超過 2 個票價，根據票價設定取得靠前的優先度
+      if (ticketPrices.length > 1) {
+        const pricesReverse = ticketPrices.reverse();
+        return alternatives.sort((a, b) => pricesReverse.indexOf(b.price) - pricesReverse.indexOf(a.price))[0]?.link;
+      }
+      return alternatives[0]?.link;
     }
     // 選擇區域
     let link = await getAreaLink();
     while (!link) {
       // 重新整理直到有剩餘出現
       console.log('沒有可選擇區域，重新整理');
-      await page.reload({ timeout: 3000 });
+      await page.reload({ waitUntil: 'networkidle0', timeout: 5000 });
       link = await getAreaLink();
     }
     await link.click();
-    await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 3000 });
+    await page.waitForNavigation({ waitUntil: 'load', timeout: 5000 });
   }
 
   /** 信用卡專區 輸入卡號頁面
@@ -194,7 +204,7 @@ function groupBy(array, keyExpression) {
   async function resolveVerify() {
     await page.type('[name="checkCode"]', verifyCode);
     await page.click('[type="submit"]');
-    await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 3000 });
+    await page.waitForNavigation({ waitUntil: 'load', timeout: 5000 });
   }
 
   /** 選擇票種與數量
@@ -227,7 +237,7 @@ function groupBy(array, keyExpression) {
         // 如果沒有區域可以選擇的節目，會沒有重新選擇按鈕，手動會到場次列表
         await page.goto(`https://tixcraft.com/activity/game/${gameId}`, { waitUntil: 'networkidle0' });
       }
-      await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 3000 });
+      await page.waitForNavigation({ waitUntil: 'load', timeout: 5000 });
       return;
     }
     // 找到驗證碼圖片的元素
@@ -326,7 +336,7 @@ function groupBy(array, keyExpression) {
     // 勾選同意會員服務條款
     await page.click('#TicketForm_agree');
     await page.click('[type="submit"]');
-    await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 3000 });
+    await page.waitForNavigation({ waitUntil: 'load', timeout: 5000 });
   }
 
   /** 轉圈圈
@@ -334,9 +344,14 @@ function groupBy(array, keyExpression) {
   async function resolveOrder() {
     await page.waitForRequest(request => {
       const url = request.url();
-      return url.includes('/ticket/checkout') || url.includes(`/ticket/verify/${gameId}`);
+      return url.includes(`/activity/detail/${gameId}`)
+        || url.includes(`/activity/game/${gameId}`)
+        || url.includes(`/ticket/area/${gameId}`)
+        || url.includes(`/ticket/ticket/${gameId}`)
+        || url.includes(`/ticket/verify/${gameId}`)
+        || url.includes('/ticket/checkout');
     });
-    await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 3000 });
+    await page.waitForNavigation({ waitUntil: 'load', timeout: 5000 });
   }
 
   /** 付款
