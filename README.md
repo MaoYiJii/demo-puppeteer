@@ -33,32 +33,46 @@ const gameId = '25_wubaitp';
 
 開啟專案目錄下的 `nodejs\index.js`，修改這個參數
 ``` js
-/** 尋找場次按鈕規則 */
-const gameLinkSelector = '#gameList tr:nth-child(1) button';
+/** 第幾場 (通常是選擇日期) */
+const gameSeq = 1;
 ```
-> 預設是點選第一個按鈕
+> 預設是第一場
 
-### 調整區域
+### 調整區域 (票價)
 
 開啟專案目錄下的 `nodejs\index.js`，修改這個參數
 ``` js
-/** 尋找區域按鈕規則 */
-const areaLinkSelector = '.area-list a';
+/** 票價優先權 (通常是選座位區域) */
+const ticketPrices = [3800, 3200];
 ```
-> 預設是點選第一個有剩餘的區域
+> 預設是先選 3800 票價再選 3200 票價，都沒有才選其他票價
 
 ### 調整票種與票數
 
-開啟專案目錄下的 `nodejs\index.js`，修改這 2 個參數
+開啟專案目錄下的 `nodejs\index.js`，修改這個參數
 ``` js
-/** 尋找票種下拉選單規則 */
-const ticketPriceSelector = '#ticketPriceList tr:nth-child(1) select';
-/** 票種購買數量 */
-const ticketCount = 1;
+/** 票種與數量 (總數不要大於 4) */
+const tickets = [
+  {
+    /** 第一個票種 2 張 */
+    seq: 1, count: 2
+  }
+];
 ```
-- 第 1 個參數是對應第一個票種的下拉選單
-- 第 2 個參數是該票種的數量
-> 預設是選擇第一個票種一張
+> 預設是選擇第 1 個票種 2 張
+
+以下範例是選擇 第 1 個票種 1 張，第 2 個票種 1 張
+> seq (票種) 不要重複，count (票數) 總和不要超過 4
+``` js
+const tickets = [
+  {
+    seq: 1, count: 1
+  },
+  {
+    seq: 2, count: 1
+  }
+];
+```
 
 ## 開發參考資源
 

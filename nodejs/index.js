@@ -3,7 +3,7 @@ const sharp = require('sharp');
 const Tesseract = require('tesseract.js');
 
 /** 節目參數 */
-const gameId = '25_elijah_v';
+const gameId = '25_wubaitp';
 /** 第幾場 (通常是選擇日期) */
 const gameSeq = 1;
 /** 票價優先權 (通常是選座位區域) */
